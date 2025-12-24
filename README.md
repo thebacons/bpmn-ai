@@ -85,6 +85,30 @@ building the latest development snapshot.
 
 - `examples/ai-bpmn-panel`: AI-assisted BPMN panel with a local AI server. See the example README for setup and usage.
 
+## AI BPMN Panel Example
+
+To try the AI panel demo:
+
+```sh
+# from the repo root
+npm install
+npm run distro
+
+cd examples/ai-bpmn-panel
+npm install
+npm start
+```
+
+The modeler runs at `http://localhost:5000` and the AI server runs at `http://localhost:5174`.
+
+To integrate the panel into your own app, use the example as a template:
+
+- UI: `examples/ai-bpmn-panel/app` (panel layout, prompt helpers, validation)
+- Server: `examples/ai-bpmn-panel/server.js` (local AI proxy + model catalog)
+- Config: set `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN`, `GEMINI_API_KEY`, and optional `OLLAMA_URL` and `AI_PORT`
+
+See `examples/ai-bpmn-panel/README.md` for detailed setup, prompts, and troubleshooting.
+
 ## Related
 
 bpmn-js builds on top of a few powerful tools:

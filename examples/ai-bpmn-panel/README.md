@@ -14,6 +14,7 @@ This example adds an AI-assisted panel to a bpmn-js modeler. It generates BPMN 2
 - Validation for missing swimlanes, BPMN DI, and dangling flows
 - Auto-fix loop for common issues
 - Local AI server with OpenAI, Claude, Gemini, or Ollama support
+- Ollama integration reads installed local models automatically
 - Custom palette + context pad from the custom elements demo
 
 ## Quick Start
@@ -59,7 +60,7 @@ Set one of the following environment variables (or paste a credential in the UI)
 - `OLLAMA_URL` (optional, defaults to `http://localhost:11434`)
 - `AI_PORT` (optional, defaults to `5174`)
 
-For Ollama, ensure you have local models installed (for example: `ollama pull llama3.1`).
+For Ollama, ensure the local Ollama server is running. The example reads installed models from your local instance so the model dropdown matches what you have pulled (for example: `ollama pull llama3.1`).
 
 ## API Endpoints
 
