@@ -11,7 +11,7 @@ import qaExtension from '../resources/qa';
 import modelCatalog from './ai/model-catalog.json';
 
 const HIGH_PRIORITY = 1500;
-const API_BASE = localStorage.getItem('aiApiBase') || 'http://localhost:5174';
+let apiBase = localStorage.getItem('aiApiBase') || 'http://localhost:5174';
 
 const DEFAULT_SYSTEM_PROMPT = [
   'You are a BPMN 2.0 modeler.',
@@ -124,6 +124,7 @@ const aiConfigStatusEl = document.getElementById('ai-config-status');
 
 const aiProviderEl = document.getElementById('ai-provider');
 const aiModelEl = document.getElementById('ai-model');
+const aiApiBaseEl = document.getElementById('ai-api-base');
 const aiCredentialEl = document.getElementById('ai-credential');
 const aiSystemEl = document.getElementById('ai-system');
 const aiTemperatureEl = document.getElementById('ai-temperature');
@@ -610,7 +611,7 @@ async function handleNewDiagram() {
 
 async function loadProviders() {
   try {
-    const resp = await fetch(`${API_BASE}/api/providers`);
+    const resp = await fetch(`${apiBase}/api/providers`);
     if (!resp.ok) {
       throw new Error('Provider list unavailable.');
     }
@@ -626,7 +627,7 @@ async function loadProviders() {
         ollama: { label: 'Ollama (Local)', available: false, models: [], suggestedModels: modelCatalog.ollamaSuggested }
       }
     };
-    setPanelStatus(aiStatusEl, `AI server not reachable at ${API_BASE}.`);
+    setPanelStatus(aiStatusEl, `AI server not reachable at ${apiBase}.`);
   }
 
   populateProviderSelect();
@@ -702,6 +703,7 @@ function ensureDefaultModel() {
 }
 
 function applyConfigToUi() {
+  aiApiBaseEl.value = apiBase;
   aiProviderEl.value = aiConfig.provider;
   updateModelSelect();
   aiSystemEl.value = aiConfig.systemPrompt;
@@ -818,7 +820,7 @@ function validateXml(xml) {
 }
 
 async function requestGeneration(promptText) {
-  const resp = await fetch(`${API_BASE}/api/generate`, {
+  const resp = await fetch(`${apiBase}/api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -841,7 +843,7 @@ async function requestGeneration(promptText) {
 }
 
 async function requestChat(messages) {
-  const resp = await fetch(`${API_BASE}/api/chat`, {
+  const resp = await fetch(`${apiBase}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -1262,6 +1264,12 @@ function setupAiPanel() {
   aiRequireLanesEl.addEventListener('change', () => scheduleConfigSave());
   aiRequireDiEl.addEventListener('change', () => scheduleConfigSave());
   aiAutoFixEl.addEventListener('change', () => scheduleConfigSave());
+
+  aiApiBaseEl.addEventListener('change', () => {
+    apiBase = aiApiBaseEl.value.trim() || 'http://localhost:5174';
+    localStorage.setItem('aiApiBase', apiBase);
+    loadProviders();
+  });
 
   setAiTab('prompt');
   ensureWorkspaceState();
