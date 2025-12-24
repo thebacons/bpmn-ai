@@ -3,7 +3,8 @@ import bpmnIoPlugin from 'eslint-plugin-bpmn-io';
 const files = {
   ignored: [
     'dist',
-    'coverage'
+    'coverage',
+    'examples/ai-bpmn-panel'
   ],
   build: [
     'test/config/*.js',

@@ -81,6 +81,10 @@ npm run dev
 You may need to perform [additional project setup](./docs/project/SETUP.md) when
 building the latest development snapshot.
 
+## Examples
+
+- `examples/ai-bpmn-panel`: AI-assisted BPMN panel with a local AI server. See the example README for setup and usage.
+
 ## Related
 
 bpmn-js builds on top of a few powerful tools:
