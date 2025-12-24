@@ -16,6 +16,15 @@ const SYSTEM_PROMPT = [
   'Keep the diagram simple, readable, and consistent with the user request.'
 ].join(' ');
 
+const CHAT_FORMAT_PROMPT = [
+  'Return a JSON object with keys: summary, assumptions, questions, actions, bpmnXml.',
+  'summary: short reasoning summary in plain language (no chain-of-thought).',
+  'assumptions/questions/actions: arrays of strings.',
+  'If clarification is needed, return questions and leave bpmnXml empty.',
+  'If bpmnXml is provided, it must be valid BPMN 2.0 XML only.',
+  'Return JSON only, no additional text.'
+].join(' ');
+
 const DEFAULT_TEMPERATURE = 0.2;
 const DEFAULT_MAX_TOKENS = 1400;
 
@@ -115,8 +124,41 @@ function extractXml(text) {
   return trimmed;
 }
 
+function extractJson(text) {
+  if (!text) {
+    return null;
+  }
+  let trimmed = text.trim();
+
+  const fenced = trimmed.match(/```(?:json)?([\s\S]*?)```/i);
+  if (fenced && fenced[1]) {
+    trimmed = fenced[1].trim();
+  }
+
+  const start = trimmed.indexOf('{');
+  const end = trimmed.lastIndexOf('}');
+  if (start >= 0 && end >= start) {
+    const candidate = trimmed.slice(start, end + 1);
+    try {
+      return JSON.parse(candidate);
+    } catch (err) {
+      return null;
+    }
+  }
+
+  return null;
+}
+
 function buildUserPrompt(prompt) {
   return `User request: ${prompt}\n\nReturn only BPMN 2.0 XML.`;
+}
+
+function buildConversationPrompt(messages = []) {
+  return messages.map((message) => {
+    const role = (message.role || 'user').toUpperCase();
+    const content = message.content || '';
+    return `${role}: ${content}`;
+  }).join('\n');
 }
 
 async function generateOpenAI({ model, prompt, credential, systemPrompt, temperature, maxTokens }) {
@@ -322,6 +364,58 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 200, { xml: extractXml(raw) });
     } catch (err) {
       sendJson(res, 500, { error: err.message || 'Generation failed.' });
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/chat') {
+    try {
+      const body = await readJsonBody(req);
+      const provider = body.provider;
+      const model = body.model;
+      const messages = Array.isArray(body.messages) ? body.messages : [];
+      const credential = body.credential;
+      const options = normalizeOptions(body);
+
+      if (!provider || !model || !messages.length) {
+        sendJson(res, 400, { error: 'provider, model, and messages are required.' });
+        return;
+      }
+
+      const systemPrompt = `${options.systemPrompt}\n\n${CHAT_FORMAT_PROMPT}`;
+      const prompt = buildConversationPrompt(messages);
+
+      let raw = '';
+      if (provider === 'openai') {
+        raw = await generateOpenAI({ model, prompt, credential, systemPrompt, ...options });
+      } else if (provider === 'anthropic') {
+        raw = await generateAnthropic({ model, prompt, credential, systemPrompt, ...options });
+      } else if (provider === 'gemini') {
+        raw = await generateGemini({ model, prompt, credential, systemPrompt, ...options });
+      } else if (provider === 'ollama') {
+        raw = await generateOllama({ model, prompt, systemPrompt, ...options });
+      } else {
+        sendJson(res, 400, { error: `Unknown provider: ${provider}` });
+        return;
+      }
+
+      const parsed = extractJson(raw);
+      if (!parsed) {
+        sendJson(res, 500, { error: 'AI response was not valid JSON.' });
+        return;
+      }
+
+      const response = {
+        summary: typeof parsed.summary === 'string' ? parsed.summary : '',
+        assumptions: Array.isArray(parsed.assumptions) ? parsed.assumptions : [],
+        questions: Array.isArray(parsed.questions) ? parsed.questions : [],
+        actions: Array.isArray(parsed.actions) ? parsed.actions : [],
+        bpmnXml: typeof parsed.bpmnXml === 'string' ? extractXml(parsed.bpmnXml) : ''
+      };
+
+      sendJson(res, 200, response);
+    } catch (err) {
+      sendJson(res, 500, { error: err.message || 'Chat request failed.' });
     }
     return;
   }

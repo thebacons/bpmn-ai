@@ -74,27 +74,63 @@
 
     <div class="ai-drawer-body">
       <section class="ai-tab-panel is-active" data-ai-panel="prompt">
-        <label class="panel-label" for="ai-prompt">Prompt</label>
-        <textarea id="ai-prompt" placeholder="Describe the process you want to model"></textarea>
+        <label class="panel-label" for="ai-project-select">Project</label>
+        <div class="ai-project-controls">
+          <select id="ai-project-select"></select>
+          <button id="ai-project-new" class="button-secondary">New</button>
+        </div>
 
-        <div class="panel-divider"></div>
-        <div class="panel-title">Add structure</div>
+        <label class="panel-label" for="ai-chat-search">Chats</label>
+        <div class="ai-chat-controls">
+          <input id="ai-chat-search" type="text" placeholder="Search chats and messages" />
+          <button id="ai-chat-new" class="button-secondary">New Chat</button>
+        </div>
 
-        <label class="panel-label" for="ai-lanes">Swimlanes (comma-separated)</label>
-        <input id="ai-lanes" type="text" placeholder="Customer, Order Processing, Kitchen, Suppliers" />
+        <div id="ai-chat-list" class="ai-chat-list"></div>
 
-        <label class="panel-label" for="ai-choices">Choices / menu options (comma-separated)</label>
-        <input id="ai-choices" type="text" placeholder="Palama, Special, Spicy, Quattro Formaggi" />
+        <div class="ai-chat-actions">
+          <button id="ai-chat-export" class="button-secondary">Export</button>
+          <button id="ai-chat-import" class="button-secondary">Import</button>
+          <select id="ai-import-mode">
+            <option value="replace">Import: Replace</option>
+            <option value="merge">Import: Merge</option>
+          </select>
+          <input id="ai-chat-import-file" class="hidden" type="file" accept="application/json" />
+        </div>
 
-        <label class="panel-label" for="ai-decisions">Decision points (comma-separated)</label>
-        <input id="ai-decisions" type="text" placeholder="Pizza type, Inventory available, Delivery method" />
+        <div id="ai-chat-thread" class="ai-chat-thread"></div>
+        <div id="ai-chat-empty" class="ai-chat-empty">Start a new chat to generate BPMN.</div>
 
-        <label class="panel-label" for="ai-sessions">Sessions / phases (comma-separated)</label>
-        <input id="ai-sessions" type="text" placeholder="Order, Preparation, Delivery" />
+        <details class="ai-prompt-helpers">
+          <summary>Prompt helpers</summary>
+          <div class="panel-title">Add structure</div>
+
+          <label class="panel-label" for="ai-lanes">Swimlanes (comma-separated)</label>
+          <input id="ai-lanes" type="text" placeholder="Customer, Order Processing, Kitchen, Suppliers" />
+
+          <label class="panel-label" for="ai-choices">Choices / menu options (comma-separated)</label>
+          <input id="ai-choices" type="text" placeholder="Palama, Special, Spicy, Quattro Formaggi" />
+
+          <label class="panel-label" for="ai-decisions">Decision points (comma-separated)</label>
+          <input id="ai-decisions" type="text" placeholder="Pizza type, Inventory available, Delivery method" />
+
+          <label class="panel-label" for="ai-sessions">Sessions / phases (comma-separated)</label>
+          <input id="ai-sessions" type="text" placeholder="Order, Preparation, Delivery" />
+        </details>
+
+        <label class="panel-label" for="ai-chat-input">Message</label>
+        <textarea id="ai-chat-input" placeholder="Describe the process you want to model"></textarea>
 
         <div class="panel-row">
-          <button id="ai-generate" class="button-primary">Generate</button>
-          <button id="ai-refresh" class="button-secondary">Refresh</button>
+          <button id="ai-chat-send" class="button-primary">Send</button>
+          <button id="ai-apply-last" class="button-secondary" disabled>Apply last BPMN</button>
+        </div>
+
+        <div class="panel-row ai-toggle-row">
+          <label class="panel-checkbox">
+            <input id="ai-auto-apply" type="checkbox" />
+            Auto-apply BPMN XML
+          </label>
         </div>
 
         <div id="ai-status" class="panel-status"></div>
@@ -106,6 +142,10 @@
 
         <label class="panel-label" for="ai-model">Model</label>
         <select id="ai-model"></select>
+
+        <div class="panel-row">
+          <button id="ai-refresh" class="button-secondary">Refresh providers</button>
+        </div>
 
         <label class="panel-label" for="ai-credential">API key (stored locally)</label>
         <input id="ai-credential" type="password" placeholder="API key or Claude token" autocomplete="off" />

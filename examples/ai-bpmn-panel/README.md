@@ -11,10 +11,12 @@ This example adds an AI-assisted panel to a bpmn-js modeler. It generates BPMN 2
 ## Features
 
 - Prompt to BPMN 2.0 XML generation
+- Chat-style workflow with projects, chats, and searchable history
 - Validation for missing swimlanes, BPMN DI, and dangling flows
 - Auto-fix loop for common issues
 - Local AI server with OpenAI, Claude, Gemini, or Ollama support
 - Ollama integration reads installed local models automatically
+- JSON export/import for chat history
 - Custom palette + context pad from the custom elements demo
 
 ## Quick Start
@@ -42,6 +44,14 @@ The modeler runs at `http://localhost:5000` and the AI server runs at `http://lo
 4. The app validates the XML and optionally auto-fixes common issues.
 5. The diagram is imported into the canvas automatically.
 
+## Chat Workflow
+
+- Create a project and start a chat.
+- The assistant can ask clarifying questions before generating BPMN.
+- Responses include a reasoning summary, assumptions, and actions taken.
+- Export/import projects and chat history via JSON.
+- Choose whether imports replace or merge with existing workspace data.
+
 ## Sample Prompts
 
 - "Model a pizza delivery process with Customer, Kitchen, Driver swimlanes and decisions for pickup vs delivery."
@@ -66,6 +76,7 @@ For Ollama, ensure the local Ollama server is running. The example reads install
 
 - `GET /api/providers` returns the provider and model catalog.
 - `POST /api/generate` generates BPMN XML from a prompt.
+- `POST /api/chat` returns a structured response with summary, questions, and optional BPMN XML.
 
 Example payload:
 
@@ -75,6 +86,21 @@ Example payload:
   "model": "gpt-4o-mini",
   "prompt": "Order-to-cash flow with swimlanes",
   "credential": "optional api key",
+  "systemPrompt": "optional system prompt",
+  "temperature": 0.2,
+  "maxTokens": 1400
+}
+```
+
+Chat payload:
+
+```json
+{
+  "provider": "openai",
+  "model": "gpt-4o-mini",
+  "messages": [
+    { "role": "user", "content": "Draft a pizza delivery process with swimlanes." }
+  ],
   "systemPrompt": "optional system prompt",
   "temperature": 0.2,
   "maxTokens": 1400
