@@ -1,5 +1,9 @@
 # AI BPMN Panel (bpmn-js example)
 
+[![BACON-AI Solutions](docs/BACON-AI-LOGO.png)](https://bacon-ai.cloud)
+
+Demo: https://bacon-ai.cloud/demo
+
 This example adds an AI-assisted panel to a bpmn-js modeler. It generates BPMN 2.0 XML from natural-language prompts and loads the result directly into the canvas. The UI includes prompt helpers, validation rules, and a local AI API server to avoid CORS and keep credentials on your machine.
 
 ![Example output](docs/example-pizza-delivery-process.png)

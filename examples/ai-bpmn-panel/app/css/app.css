@@ -201,6 +201,32 @@ button:hover {
   gap: 10px;
 }
 
+.ai-brand {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.ai-logo-link {
+  display: inline-flex;
+}
+
+.ai-logo {
+  height: 28px;
+  width: auto;
+}
+
+.ai-demo-link {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ai-demo-link:hover {
+  color: var(--accent);
+}
+
 .ai-drawer-bar {
   align-items: center;
   display: flex;
