@@ -1,4 +1,6 @@
-# bpmn-js - BPMN 2.0 for the web
+# bpmn-js - BPMN 2.0 for the web + AI BPMN Panel (BACON-AI Solutions)
+
+This fork adds the AI BPMN Panel example created by Colin Bacon (BACON-AI Solutions). See xamples/ai-bpmn-panel or https://bacon-ai.cloud/demo.
 
 [![Build Status](https://github.com/bpmn-io/bpmn-js/workflows/CI/badge.svg)](https://github.com/bpmn-io/bpmn-js/actions?query=workflow%3ACI)
 
@@ -121,3 +123,4 @@ It is an extensible toolkit, complemented by many [additional utilities](https:/
 ## License
 
 Use under the terms of the [bpmn.io license](http://bpmn.io/license).
+
