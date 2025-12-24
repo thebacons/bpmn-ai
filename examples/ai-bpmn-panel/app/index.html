@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>bpmn-js-example-model-extension</title>
+
+  <meta charset="utf-8"/>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="vendor/bpmn-js/assets/diagram-js.css" />
+  <link rel="stylesheet" href="vendor/bpmn-js/assets/bpmn-font/css/bpmn-embedded.css" />
+  <link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+  <div id="menu-bar">
+    <div class="menu-group">
+      <button class="menu-button" data-action="new">New</button>
+      <button class="menu-button" data-action="open">Open BPMN</button>
+      <button class="menu-button" data-action="import">Import XML</button>
+      <button class="menu-button" data-action="export-bpmn">Export BPMN</button>
+      <button class="menu-button" data-action="export-svg">Export SVG</button>
+    </div>
+    <div id="menu-status" class="menu-status"></div>
+  </div>
+
+  <div id="container"></div>
+
+  <input id="file-input" class="hidden" type="file" accept=".bpmn,.xml,application/xml,text/xml" />
+
+  <div id="import-panel" class="panel hidden">
+    <div class="panel-title">Import BPMN XML (.bpmn)</div>
+    <textarea id="import-xml" placeholder="Paste BPMN 2.0 XML here"></textarea>
+    <div class="panel-hint">
+      Example file: C:\Users\colin\Claude-Work\Projects\bpmn-ai\bpmn-js-examples\starter\diagram.bpmn
+    </div>
+    <div class="panel-row">
+      <button id="import-apply">Import</button>
+      <button id="import-cancel" class="button-secondary">Cancel</button>
+    </div>
+    <div id="import-status" class="panel-status"></div>
+  </div>
+
+  <div id="ai-panel" class="panel ai-drawer" aria-expanded="true">
+    <div class="ai-brand">
+      <a class="ai-logo-link" href="https://bacon-ai.cloud" target="_blank" rel="noopener" aria-label="BACON-AI Solutions website">
+        <img class="ai-logo" src="assets/BACON-AI-LOGO.png" alt="BACON-AI Solutions" />
+      </a>
+      <a class="ai-demo-link" href="https://bacon-ai.cloud/demo" target="_blank" rel="noopener">Demo</a>
+    </div>
+    <div class="ai-drawer-bar">
+      <div class="ai-title">
+        <div class="panel-title">AI BPMN</div>
+        <div id="ai-current-model" class="ai-model-chip"></div>
+      </div>
+      <div class="ai-actions">
+        <button id="ai-settings" class="icon-button" title="Open settings" aria-label="Open AI settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M19.4 12.9c.1-.3.1-.6.1-.9s0-.6-.1-.9l2-1.6a.5.5 0 0 0 .1-.6l-1.9-3.2a.5.5 0 0 0-.6-.2l-2.4 1a7 7 0 0 0-1.6-.9l-.4-2.6a.5.5 0 0 0-.5-.4h-3.8a.5.5 0 0 0-.5.4l-.4 2.6c-.6.2-1.1.5-1.6.9l-2.4-1a.5.5 0 0 0-.6.2L2.4 8.5a.5.5 0 0 0 .1.6l2 1.6c-.1.3-.1.6-.1.9s0 .6.1.9l-2 1.6a.5.5 0 0 0-.1.6l1.9 3.2c.1.2.4.3.6.2l2.4-1c.5.4 1 .7 1.6.9l.4 2.6c0 .2.3.4.5.4h3.8c.2 0 .4-.2.5-.4l.4-2.6c.6-.2 1.1-.5 1.6-.9l2.4 1c.2.1.5 0 .6-.2l1.9-3.2a.5.5 0 0 0-.1-.6l-2-1.6ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/>
+          </svg>
+        </button>
+        <button id="ai-collapse" class="icon-button" title="Collapse panel" aria-label="Collapse AI panel">
+          <span class="icon-collapse"><<</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="ai-tabs">
+      <button class="ai-tab-button is-active" type="button" data-ai-tab="prompt">Prompt</button>
+      <button class="ai-tab-button" type="button" data-ai-tab="settings">Settings</button>
+      <button class="ai-tab-button" type="button" data-ai-tab="validation">Validation</button>
+    </div>
+
+    <div class="ai-drawer-body">
+      <section class="ai-tab-panel is-active" data-ai-panel="prompt">
+        <label class="panel-label" for="ai-prompt">Prompt</label>
+        <textarea id="ai-prompt" placeholder="Describe the process you want to model"></textarea>
+
+        <div class="panel-divider"></div>
+        <div class="panel-title">Add structure</div>
+
+        <label class="panel-label" for="ai-lanes">Swimlanes (comma-separated)</label>
+        <input id="ai-lanes" type="text" placeholder="Customer, Order Processing, Kitchen, Suppliers" />
+
+        <label class="panel-label" for="ai-choices">Choices / menu options (comma-separated)</label>
+        <input id="ai-choices" type="text" placeholder="Palama, Special, Spicy, Quattro Formaggi" />
+
+        <label class="panel-label" for="ai-decisions">Decision points (comma-separated)</label>
+        <input id="ai-decisions" type="text" placeholder="Pizza type, Inventory available, Delivery method" />
+
+        <label class="panel-label" for="ai-sessions">Sessions / phases (comma-separated)</label>
+        <input id="ai-sessions" type="text" placeholder="Order, Preparation, Delivery" />
+
+        <div class="panel-row">
+          <button id="ai-generate" class="button-primary">Generate</button>
+          <button id="ai-refresh" class="button-secondary">Refresh</button>
+        </div>
+
+        <div id="ai-status" class="panel-status"></div>
+      </section>
+
+      <section class="ai-tab-panel" data-ai-panel="settings">
+        <label class="panel-label" for="ai-provider">Provider</label>
+        <select id="ai-provider"></select>
+
+        <label class="panel-label" for="ai-model">Model</label>
+        <select id="ai-model"></select>
+
+        <label class="panel-label" for="ai-credential">API key (stored locally)</label>
+        <input id="ai-credential" type="password" placeholder="API key or Claude token" autocomplete="off" />
+
+        <label class="panel-label" for="ai-system">System prompt (advanced)</label>
+        <div class="panel-hint">Use this to set global BPMN generation rules.</div>
+        <textarea id="ai-system" placeholder="System instructions for BPMN generation"></textarea>
+
+        <div class="panel-row">
+          <div class="panel-field">
+            <label class="panel-label" for="ai-temperature">Temperature</label>
+            <input id="ai-temperature" type="number" min="0" max="2" step="0.1" />
+          </div>
+          <div class="panel-field">
+            <label class="panel-label" for="ai-max-tokens">Max tokens</label>
+            <input id="ai-max-tokens" type="number" min="256" max="8192" step="64" />
+          </div>
+        </div>
+
+        <div class="panel-row">
+          <button id="ai-config-save">Save settings</button>
+          <button id="ai-config-reset" class="button-secondary">Reset</button>
+        </div>
+        <div id="ai-config-status" class="panel-status"></div>
+      </section>
+
+      <section class="ai-tab-panel" data-ai-panel="validation">
+        <div class="panel-title">Validation rules</div>
+        <label class="panel-checkbox">
+          <input id="ai-require-lanes" type="checkbox" checked />
+          Require swimlanes
+        </label>
+        <label class="panel-checkbox">
+          <input id="ai-require-di" type="checkbox" checked />
+          Require BPMN DI
+        </label>
+        <label class="panel-checkbox">
+          <input id="ai-auto-fix" type="checkbox" checked />
+          Auto-fix on validation errors
+        </label>
+        <div class="panel-hint">These rules are applied when generating diagrams.</div>
+      </section>
+    </div>
+
+    <div class="ai-collapsed-label">AI</div>
+  </div>
+  <div id="quality-assurance" class="panel hidden">
+    <form id="form">
+      <p>
+        <b>Suitability Score</b>
+      </p>
+      <br />
+      <input id="suitability-score" type="text" placeholder="100" autocomplete="off">
+      <br />
+      <br />
+      <p id="warning" class="hidden">
+        Suitability Score must be a number
+      </p>
+      <br />
+      <p>
+        <b>Last Checked</b>
+      </p>
+      <br />
+      <p id="last-checked">
+        -
+      </p>
+      <br />
+      <input id="okay" type="submit" value="Okay">
+    </form>
+  </div>
+
+  <div id="hint" class="panel">Click <b>right mouse button</b> to edit properties.</div>
+
+  <script src="app.js"></script>
+</html>
+
