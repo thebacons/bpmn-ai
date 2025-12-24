@@ -91,6 +91,8 @@ building the latest development snapshot.
 
 To try the AI panel demo:
 
+![AI BPMN Panel example](examples/ai-bpmn-panel/docs/example-pizza-delivery-process.png)
+
 ```sh
 # from the repo root
 npm install
