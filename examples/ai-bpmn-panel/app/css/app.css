@@ -262,14 +262,16 @@ button:hover {
 
 .ai-project-controls,
 .ai-chat-controls,
-.ai-chat-actions {
+.ai-chat-actions,
+.ai-role-controls {
   align-items: center;
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
 }
 
-.ai-project-controls select {
+.ai-project-controls select,
+.ai-role-controls select {
   flex: 1;
 }
 

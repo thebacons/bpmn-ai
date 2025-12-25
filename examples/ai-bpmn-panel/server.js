@@ -13,6 +13,12 @@ const SYSTEM_PROMPT = [
   'Return valid BPMN 2.0 XML only. Do not include code fences or explanations.',
   'Include BPMN DI (bpmndi:BPMNDiagram, bpmndi:BPMNPlane, and shapes/edges).',
   'Use a single process with a start event, tasks, gateways as needed, and an end event.',
+  'Use pools and swimlanes when participants are provided.',
+  'Ensure every sequenceFlow has sourceRef and targetRef (no dangling arrows).',
+  'Ensure nodes are well spaced so they look professional.',
+  'Use straight or right-angle sequenceFlow connectors (no diagonals).',
+  'Include BPMN DI shapes for lanes.',
+  'Ensure to create a pool and swim lanes.',
   'Keep the diagram simple, readable, and consistent with the user request.'
 ].join(' ');
 

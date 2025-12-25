@@ -88,6 +88,11 @@
 
         <div id="ai-chat-list" class="ai-chat-list"></div>
 
+        <label class="panel-label" for="ai-role-select">Role</label>
+        <div class="ai-role-controls">
+          <select id="ai-role-select"></select>
+        </div>
+
         <div class="ai-chat-actions">
           <button id="ai-chat-export" class="button-secondary">Export</button>
           <button id="ai-chat-import" class="button-secondary">Import</button>
@@ -156,6 +161,22 @@
         <label class="panel-label" for="ai-system">System prompt (advanced)</label>
         <div class="panel-hint">Use this to set global BPMN generation rules.</div>
         <textarea id="ai-system" placeholder="System instructions for BPMN generation"></textarea>
+
+        <div class="panel-title">Role presets</div>
+        <label class="panel-label" for="ai-role-presets">Role preset</label>
+        <select id="ai-role-presets"></select>
+        <label class="panel-label" for="ai-role-name">Role name</label>
+        <input id="ai-role-name" type="text" placeholder="Role name" />
+        <label class="panel-label" for="ai-role-description">Role description</label>
+        <input id="ai-role-description" type="text" placeholder="Short description" />
+        <label class="panel-label" for="ai-role-prompt">Role prompt</label>
+        <textarea id="ai-role-prompt" placeholder="Role-specific instructions"></textarea>
+        <div class="panel-row">
+          <button id="ai-role-save">Save role</button>
+          <button id="ai-role-new" class="button-secondary">New</button>
+          <button id="ai-role-delete" class="button-secondary">Delete</button>
+        </div>
+        <div id="ai-role-status" class="panel-status"></div>
 
         <div class="panel-row">
           <div class="panel-field">

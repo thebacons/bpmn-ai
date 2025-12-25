@@ -19,8 +19,52 @@ const DEFAULT_SYSTEM_PROMPT = [
   'Include BPMN DI (bpmndi:BPMNDiagram, bpmndi:BPMNPlane, and shapes/edges).',
   'Use pools and swimlanes when participants are provided.',
   'Ensure every sequenceFlow has sourceRef and targetRef (no dangling arrows).',
+  'Ensure nodes are well spaced so they look professional.',
+  'Use straight or right-angle sequenceFlow connectors (no diagonals).',
+  'Include BPMN DI shapes for lanes.',
+  'Ensure to create a pool and swim lanes.',
   'Keep the diagram simple, readable, and consistent with the user request.'
 ].join(' ');
+
+const DEFAULT_ROLE_ID = 'role-bpmn-modeler';
+const DEFAULT_ROLES = [
+  {
+    id: DEFAULT_ROLE_ID,
+    name: 'BPMN Modeler',
+    description: 'Generates BPMN 2.0 diagrams with pools, lanes, and clean DI.',
+    systemPrompt: DEFAULT_SYSTEM_PROMPT
+  },
+  {
+    id: 'role-doe-directive',
+    name: 'DOE Directive',
+    description: 'Defines mission, constraints, and success criteria.',
+    systemPrompt: [
+      'You are the Directive agent in a DOE system.',
+      'Define the mission, non-negotiable constraints, and success criteria.',
+      'Ask clarifying questions before moving to execution details.'
+    ].join(' ')
+  },
+  {
+    id: 'role-doe-orchestrator',
+    name: 'DOE Orchestrator',
+    description: 'Plans, decomposes work, and coordinates dependencies.',
+    systemPrompt: [
+      'You are the Orchestrator agent in a DOE system.',
+      'Decompose the goal into steps, highlight dependencies, and plan execution.',
+      'Ask questions when requirements are unclear.'
+    ].join(' ')
+  },
+  {
+    id: 'role-doe-executor',
+    name: 'DOE Executor',
+    description: 'Produces concrete outputs and actionable steps.',
+    systemPrompt: [
+      'You are the Executor agent in a DOE system.',
+      'Focus on concrete outputs, clear steps, and verification.',
+      'Report blockers and request missing inputs.'
+    ].join(' ')
+  }
+];
 
 const DEFAULT_CONFIG = {
   provider: 'ollama',
@@ -64,7 +108,18 @@ function saveConfig(config) {
 }
 
 const WORKSPACE_KEY = 'aiWorkspaceV1';
+function cloneRoles(roles) {
+  return roles.map((role) => ({
+    id: role.id,
+    name: role.name,
+    description: role.description || '',
+    systemPrompt: role.systemPrompt || ''
+  }));
+}
+
 const DEFAULT_WORKSPACE = {
+  roles: cloneRoles(DEFAULT_ROLES),
+  activeRoleId: DEFAULT_ROLE_ID,
   projects: [],
   activeProjectId: null,
   activeChatId: null,
@@ -74,6 +129,42 @@ const DEFAULT_WORKSPACE = {
 
 function createId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+}
+
+function normalizeRole(role) {
+  if (!role) {
+    return null;
+  }
+  const name = typeof role.name === 'string' && role.name.trim() ? role.name.trim() : 'Role';
+  const id = typeof role.id === 'string' && role.id.trim() ? role.id.trim() : createId('role');
+  return {
+    id,
+    name,
+    description: typeof role.description === 'string' ? role.description.trim() : '',
+    systemPrompt: typeof role.systemPrompt === 'string' ? role.systemPrompt.trim() : ''
+  };
+}
+
+function normalizeRoles(rawRoles) {
+  if (!Array.isArray(rawRoles) || rawRoles.length === 0) {
+    return cloneRoles(DEFAULT_ROLES);
+  }
+  const roles = [];
+  const seen = new Set();
+  rawRoles.forEach((role) => {
+    const normalized = normalizeRole(role);
+    if (!normalized) {
+      return;
+    }
+    let id = normalized.id;
+    while (seen.has(id)) {
+      id = createId('role');
+    }
+    normalized.id = id;
+    seen.add(id);
+    roles.push(normalized);
+  });
+  return roles.length ? roles : cloneRoles(DEFAULT_ROLES);
 }
 
 function loadWorkspace() {
@@ -89,9 +180,148 @@ function saveWorkspace() {
   localStorage.setItem(WORKSPACE_KEY, JSON.stringify(workspace));
 }
 
+function getRoleById(roleId) {
+  return workspace.roles.find((role) => role.id === roleId) || null;
+}
+
+function getActiveRole(chat) {
+  const roleId = chat?.roleId || workspace.activeRoleId || DEFAULT_ROLE_ID;
+  return getRoleById(roleId) || workspace.roles[0] || null;
+}
+
+function ensureRoleState() {
+  workspace.roles = normalizeRoles(workspace.roles);
+  const roleIds = new Set(workspace.roles.map((role) => role.id));
+
+  if (!workspace.activeRoleId || !roleIds.has(workspace.activeRoleId)) {
+    workspace.activeRoleId = workspace.roles[0]?.id || DEFAULT_ROLE_ID;
+  }
+
+  workspace.projects.forEach((project) => {
+    project.chats.forEach((chat) => {
+      if (!chat.roleId || !roleIds.has(chat.roleId)) {
+        chat.roleId = workspace.activeRoleId;
+      }
+    });
+  });
+
+  if (!roleEditorId || !roleIds.has(roleEditorId)) {
+    roleEditorId = workspace.activeRoleId;
+  }
+}
+
+function renderRoleSelect(chatOverride) {
+  if (!aiRoleSelectEl) {
+    return;
+  }
+  aiRoleSelectEl.innerHTML = '';
+  workspace.roles.forEach((role) => {
+    const option = document.createElement('option');
+    option.value = role.id;
+    option.textContent = role.name;
+    aiRoleSelectEl.appendChild(option);
+  });
+  const project = getActiveProject();
+  const chat = chatOverride || getActiveChat(project);
+  const roleId = chat?.roleId || workspace.activeRoleId || '';
+  aiRoleSelectEl.value = roleId;
+}
+
+function renderRoleEditor() {
+  if (!aiRolePresetEl) {
+    return;
+  }
+  aiRolePresetEl.innerHTML = '';
+  workspace.roles.forEach((role) => {
+    const option = document.createElement('option');
+    option.value = role.id;
+    option.textContent = role.name;
+    aiRolePresetEl.appendChild(option);
+  });
+
+  if (!roleEditorId || !getRoleById(roleEditorId)) {
+    roleEditorId = workspace.activeRoleId;
+  }
+
+  aiRolePresetEl.value = roleEditorId || '';
+  const role = getRoleById(roleEditorId);
+  if (!role) {
+    return;
+  }
+  aiRoleNameEl.value = role.name;
+  aiRoleDescriptionEl.value = role.description || '';
+  aiRolePromptEl.value = role.systemPrompt || '';
+}
+
+function saveRoleFromEditor() {
+  const role = getRoleById(roleEditorId);
+  if (!role) {
+    setPanelStatus(aiRoleStatusEl, 'Select a role first.');
+    return;
+  }
+  role.name = aiRoleNameEl.value.trim() || 'Role';
+  role.description = aiRoleDescriptionEl.value.trim();
+  role.systemPrompt = aiRolePromptEl.value.trim();
+  saveWorkspace();
+  renderRoleSelect();
+  renderRoleEditor();
+  renderChatThread();
+  setPanelStatus(aiRoleStatusEl, 'Role saved.');
+}
+
+function createNewRole() {
+  const role = {
+    id: createId('role'),
+    name: 'New Role',
+    description: '',
+    systemPrompt: ''
+  };
+  workspace.roles.push(role);
+  roleEditorId = role.id;
+  saveWorkspace();
+  renderRoleSelect();
+  renderRoleEditor();
+  setPanelStatus(aiRoleStatusEl, 'Role created.');
+}
+
+function deleteRoleFromEditor() {
+  if (workspace.roles.length <= 1) {
+    setPanelStatus(aiRoleStatusEl, 'Keep at least one role.');
+    return;
+  }
+  const role = getRoleById(roleEditorId);
+  if (!role) {
+    return;
+  }
+  const confirmed = window.confirm(`Delete role "${role.name}"?`);
+  if (!confirmed) {
+    return;
+  }
+
+  workspace.roles = workspace.roles.filter((item) => item.id !== roleEditorId);
+  const fallbackRole = workspace.roles[0];
+  if (workspace.activeRoleId === roleEditorId) {
+    workspace.activeRoleId = fallbackRole.id;
+  }
+  workspace.projects.forEach((project) => {
+    project.chats.forEach((chat) => {
+      if (chat.roleId === roleEditorId) {
+        chat.roleId = fallbackRole.id;
+      }
+    });
+  });
+  roleEditorId = fallbackRole.id;
+  saveWorkspace();
+  renderRoleSelect();
+  renderRoleEditor();
+  renderChatThread();
+  setPanelStatus(aiRoleStatusEl, 'Role deleted.');
+}
+
 let aiConfig = loadConfig();
 let credentialCache = '';
 let workspace = loadWorkspace();
+let roleEditorId = null;
 
 const containerEl = document.getElementById('container');
 const qualityAssuranceEl = document.getElementById('quality-assurance');
@@ -151,6 +381,15 @@ const aiChatInputEl = document.getElementById('ai-chat-input');
 const aiChatSendEl = document.getElementById('ai-chat-send');
 const aiApplyLastEl = document.getElementById('ai-apply-last');
 const aiAutoApplyEl = document.getElementById('ai-auto-apply');
+const aiRoleSelectEl = document.getElementById('ai-role-select');
+const aiRolePresetEl = document.getElementById('ai-role-presets');
+const aiRoleNameEl = document.getElementById('ai-role-name');
+const aiRoleDescriptionEl = document.getElementById('ai-role-description');
+const aiRolePromptEl = document.getElementById('ai-role-prompt');
+const aiRoleNewEl = document.getElementById('ai-role-new');
+const aiRoleSaveEl = document.getElementById('ai-role-save');
+const aiRoleDeleteEl = document.getElementById('ai-role-delete');
+const aiRoleStatusEl = document.getElementById('ai-role-status');
 
 let providerData = null;
 
@@ -210,6 +449,8 @@ function ensureWorkspaceState() {
     workspace.projects = [];
   }
 
+  ensureRoleState();
+
   if (!workspace.projects.length) {
     const project = createProject('Default Project');
     createChat(project, 'Chat 1');
@@ -256,6 +497,7 @@ function createChat(project, title) {
     title: title || 'New Chat',
     messages: [],
     lastBpmnXml: '',
+    roleId: workspace.activeRoleId || DEFAULT_ROLE_ID,
     createdAt: now,
     updatedAt: now
   };
@@ -287,6 +529,8 @@ function setActiveChat(projectId, chatId) {
 
 function renderWorkspace() {
   applyWorkspaceToUi();
+  renderRoleSelect();
+  renderRoleEditor();
   renderProjectSelect();
   renderChatList();
   renderChatThread();
@@ -383,6 +627,8 @@ function renderChatThread() {
   const chat = getActiveChat(project);
   const messages = chat?.messages || [];
 
+  renderRoleSelect(chat);
+
   aiChatEmptyEl.classList.toggle('hidden', messages.length > 0);
 
   messages.forEach((message) => {
@@ -402,7 +648,12 @@ function createMessageElement(message, chat) {
   header.className = 'ai-message-header';
   const title = document.createElement('span');
   title.className = 'ai-message-title';
-  title.textContent = message.role === 'user' ? 'You' : 'AI Assistant';
+  if (message.role === 'user') {
+    title.textContent = 'You';
+  } else {
+    const roleLabel = getRoleById(message.roleId)?.name || 'AI Assistant';
+    title.textContent = roleLabel;
+  }
   const time = document.createElement('span');
   time.textContent = formatTimestamp(message.createdAt);
   header.appendChild(title);
@@ -847,29 +1098,184 @@ function buildPrompt(userPrompt) {
   return lines.join('\n');
 }
 
+function parseNumber(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeEdgeAnchors(xml) {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xml, 'text/xml');
+    if (doc.getElementsByTagName('parsererror').length) {
+      return xml;
+    }
+
+    const boundsByElement = new Map();
+    const shapes = Array.from(doc.getElementsByTagName('bpmndi:BPMNShape'));
+    shapes.forEach((shape) => {
+      const elementId = shape.getAttribute('bpmnElement');
+      const bounds = shape.getElementsByTagName('dc:Bounds')[0];
+      if (!elementId || !bounds) {
+        return;
+      }
+      const x = parseNumber(bounds.getAttribute('x'));
+      const y = parseNumber(bounds.getAttribute('y'));
+      const width = parseNumber(bounds.getAttribute('width'));
+      const height = parseNumber(bounds.getAttribute('height'));
+      if ([ x, y, width, height ].some((value) => value === null)) {
+        return;
+      }
+      boundsByElement.set(elementId, { x, y, width, height });
+    });
+
+    const flowMap = new Map();
+    const flows = Array.from(doc.getElementsByTagName('bpmn:sequenceFlow'));
+    flows.forEach((flow) => {
+      const id = flow.getAttribute('id');
+      const sourceRef = flow.getAttribute('sourceRef');
+      const targetRef = flow.getAttribute('targetRef');
+      if (id && sourceRef && targetRef) {
+        flowMap.set(id, { sourceRef, targetRef });
+      }
+    });
+
+    const edges = Array.from(doc.getElementsByTagName('bpmndi:BPMNEdge'));
+    edges.forEach((edge) => {
+      const flowId = edge.getAttribute('bpmnElement');
+      const refs = flowMap.get(flowId);
+      if (!refs) {
+        return;
+      }
+      const sourceBounds = boundsByElement.get(refs.sourceRef);
+      const targetBounds = boundsByElement.get(refs.targetRef);
+      if (!sourceBounds || !targetBounds) {
+        return;
+      }
+      const waypoints = Array.from(edge.getElementsByTagName('di:waypoint'));
+      if (waypoints.length < 2) {
+        return;
+      }
+      const points = waypoints.map((point) => ({
+        el: point,
+        x: parseNumber(point.getAttribute('x')),
+        y: parseNumber(point.getAttribute('y'))
+      }));
+
+      const adjustEndpoint = (point, anchor, bounds) => {
+        if (point.x === null || point.y === null || anchor.x === null || anchor.y === null) {
+          return;
+        }
+        const { x, y, width, height } = bounds;
+        const onEdge = point.x === x || point.x === x + width || point.y === y || point.y === y + height;
+        const inside = point.x > x && point.x < x + width && point.y > y && point.y < y + height;
+        if (!inside || onEdge) {
+          return;
+        }
+
+        const cx = x + width / 2;
+        const cy = y + height / 2;
+        const dx = anchor.x - cx;
+        const dy = anchor.y - cy;
+        if (dx === 0 && dy === 0) {
+          return;
+        }
+
+        let ix = cx;
+        let iy = cy;
+        if (dx === 0) {
+          ix = cx;
+          iy = dy > 0 ? y + height : y;
+        } else if (dy === 0) {
+          iy = cy;
+          ix = dx > 0 ? x + width : x;
+        } else {
+          const candidates = [];
+          if (dx > 0) {
+            candidates.push((x + width - cx) / dx);
+          } else if (dx < 0) {
+            candidates.push((x - cx) / dx);
+          }
+          if (dy > 0) {
+            candidates.push((y + height - cy) / dy);
+          } else if (dy < 0) {
+            candidates.push((y - cy) / dy);
+          }
+          const t = Math.min(...candidates.filter((value) => value > 0));
+          ix = cx + dx * t;
+          iy = cy + dy * t;
+        }
+
+        point.el.setAttribute('x', String(Math.round(ix)));
+        point.el.setAttribute('y', String(Math.round(iy)));
+      };
+
+      adjustEndpoint(points[0], points[1], sourceBounds);
+      adjustEndpoint(points[points.length - 1], points[points.length - 2], targetBounds);
+
+    });
+
+    return new XMLSerializer().serializeToString(doc);
+  } catch (err) {
+    return xml;
+  }
+}
+
 function validateXml(xml) {
-  const issues = [];
+  const issues = new Set();
+  const addIssue = (issue) => {
+    issues.add(issue);
+  };
 
   if (aiConfig.requireLanes && !/<[^>]*laneSet\\b/i.test(xml)) {
-    issues.push('Missing laneSet (swimlanes).');
+    addIssue('Missing laneSet (swimlanes).');
   }
 
   if (aiConfig.requireDi) {
     if (!/BPMNDiagram/i.test(xml) || !/BPMNPlane/i.test(xml)) {
-      issues.push('Missing BPMN DI (BPMNDiagram/BPMNPlane).');
+      addIssue('Missing BPMN DI (BPMNDiagram/BPMNPlane).');
     }
   }
+
+  if (aiConfig.requireLanes) {
+    const laneIds = Array.from(xml.matchAll(/<[^>]*bpmn:lane\\b[^>]*id=\"([^\"]+)\"/gi))
+      .map((match) => match[1]);
+    if (laneIds.length) {
+      const missingLaneShapes = laneIds.filter((laneId) => {
+        const laneShape = new RegExp(`bpmndi:BPMNShape[^>]*bpmnElement=\"${laneId}\"`, 'i');
+        return !laneShape.test(xml);
+      });
+      if (missingLaneShapes.length) {
+        addIssue('Missing BPMN DI shapes for lanes.');
+      }
+    }
+  }
+
+  const edgeBlocks = xml.match(/<bpmndi:BPMNEdge[\s\S]*?<\/bpmndi:BPMNEdge>/gi) || [];
+  edgeBlocks.forEach((edge) => {
+    const points = Array.from(edge.matchAll(/<di:waypoint\b[^>]*x="([^"]+)"[^>]*y="([^"]+)"/gi))
+      .map((match) => ({ x: Number(match[1]), y: Number(match[2]) }))
+      .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+    for (let i = 1; i < points.length; i += 1) {
+      const prev = points[i - 1];
+      const curr = points[i];
+      if (prev.x !== curr.x && prev.y !== curr.y) {
+        addIssue('Sequence flow connectors include diagonal segments.');
+        break;
+      }
+    }
+  });
 
   const flows = xml.match(/<[^>]*sequenceFlow\\b[^>]*>/gi) || [];
   flows.forEach((tag, index) => {
     if (!/sourceRef=/.test(tag) || !/targetRef=/.test(tag)) {
-      issues.push(`sequenceFlow missing sourceRef/targetRef (index ${index + 1}).`);
+      addIssue(`sequenceFlow missing sourceRef/targetRef (index ${index + 1}).`);
     }
   });
 
   return {
-    ok: issues.length === 0,
-    issues
+    ok: issues.size === 0,
+    issues: Array.from(issues)
   };
 }
 
@@ -896,7 +1302,7 @@ async function requestGeneration(promptText) {
   return data.xml || '';
 }
 
-async function requestChat(messages) {
+async function requestChat(messages, systemPromptOverride) {
   const resp = await fetch(`${apiBase}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -905,7 +1311,7 @@ async function requestChat(messages) {
       model: aiConfig.model,
       messages,
       credential: credentialCache || undefined,
-      systemPrompt: aiConfig.systemPrompt,
+      systemPrompt: systemPromptOverride || aiConfig.systemPrompt,
       temperature: aiConfig.temperature,
       maxTokens: aiConfig.maxTokens
     })
@@ -957,6 +1363,8 @@ async function applyBpmnXml(xml, label) {
     throw new Error('Empty BPMN XML response.');
   }
 
+  candidate = normalizeEdgeAnchors(candidate);
+
   setPanelStatus(aiStatusEl, 'Applying BPMN XML...');
   const validation = validateXml(candidate);
 
@@ -966,6 +1374,8 @@ async function applyBpmnXml(xml, label) {
       'Fix the BPMN XML below.',
       'Issues:',
       ...validation.issues.map((issue) => `- ${issue}`),
+      'Use straight or right-angle sequenceFlow connectors (no diagonals).',
+      'Include BPMN DI lane shapes for each lane.',
       'Return corrected BPMN 2.0 XML only.',
       'XML:',
       candidate
@@ -974,6 +1384,7 @@ async function applyBpmnXml(xml, label) {
     if (!candidate) {
       throw new Error('Auto-fix returned empty BPMN XML.');
     }
+    candidate = normalizeEdgeAnchors(candidate);
   }
 
   const finalCheck = validateXml(candidate);
@@ -1008,6 +1419,12 @@ async function handleChatSend() {
     return;
   }
 
+  const role = getActiveRole(chat);
+  if (role?.id) {
+    chat.roleId = role.id;
+    workspace.activeRoleId = role.id;
+  }
+
   const now = new Date().toISOString();
   chat.messages.push({
     id: createId('msg'),
@@ -1028,11 +1445,12 @@ async function handleChatSend() {
   try {
     const fullPrompt = buildPrompt(messageText);
     const messages = buildChatMessages(chat, fullPrompt);
-    const response = await requestChat(messages);
+    const response = await requestChat(messages, role?.systemPrompt);
 
     const assistantMessage = {
       id: createId('msg'),
       role: 'assistant',
+      roleId: role?.id || '',
       summary: response.summary || '',
       assumptions: Array.isArray(response.assumptions) ? response.assumptions : [],
       questions: Array.isArray(response.questions) ? response.questions : [],
@@ -1090,7 +1508,13 @@ function normalizeImportedWorkspace(data) {
     return null;
   }
 
+  const roles = normalizeRoles(raw.roles);
+  const roleIds = new Set(roles.map((role) => role.id));
+  const activeRoleId = roleIds.has(raw.activeRoleId) ? raw.activeRoleId : roles[0]?.id || DEFAULT_ROLE_ID;
+
   return {
+    roles,
+    activeRoleId,
     projects: raw.projects.map((project) => ({
       ...project,
       chats: Array.isArray(project.chats) ? project.chats : []
@@ -1102,7 +1526,19 @@ function normalizeImportedWorkspace(data) {
   };
 }
 
+function mergeRoles(importedRoles) {
+  const roles = normalizeRoles(importedRoles);
+  const existingIds = new Set(workspace.roles.map((role) => role.id));
+  roles.forEach((role) => {
+    if (!existingIds.has(role.id)) {
+      workspace.roles.push(role);
+      existingIds.add(role.id);
+    }
+  });
+}
+
 function mergeWorkspace(imported) {
+  mergeRoles(imported.roles);
   const existingProjectIds = new Set(workspace.projects.map((project) => project.id));
   const existingChatIds = new Set(
     workspace.projects.flatMap((project) => project.chats.map((chat) => chat.id))
@@ -1225,6 +1661,45 @@ function setupAiPanel() {
       setAiCollapsed(false);
     }
   });
+
+  if (aiRoleSelectEl) {
+    aiRoleSelectEl.addEventListener('change', () => {
+      const project = getActiveProject();
+      const chat = getActiveChat(project);
+      if (!chat) {
+        return;
+      }
+      chat.roleId = aiRoleSelectEl.value;
+      workspace.activeRoleId = chat.roleId;
+      saveWorkspace();
+      renderChatThread();
+    });
+  }
+
+  if (aiRolePresetEl) {
+    aiRolePresetEl.addEventListener('change', () => {
+      roleEditorId = aiRolePresetEl.value;
+      renderRoleEditor();
+    });
+  }
+
+  if (aiRoleNewEl) {
+    aiRoleNewEl.addEventListener('click', () => {
+      createNewRole();
+    });
+  }
+
+  if (aiRoleSaveEl) {
+    aiRoleSaveEl.addEventListener('click', () => {
+      saveRoleFromEditor();
+    });
+  }
+
+  if (aiRoleDeleteEl) {
+    aiRoleDeleteEl.addEventListener('click', () => {
+      deleteRoleFromEditor();
+    });
+  }
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && !aiPanelEl.classList.contains('is-collapsed')) {
