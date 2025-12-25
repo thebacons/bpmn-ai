@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_selfHealing" targetNamespace="http://example.com/selfhealing">
+  <bpmn:process id="process_selfHealing" name="Deterministic AI Self‑Healing Process" isExecutable="true">
+    <bpmn:laneSet id="LaneSet_selfHealing">
+      <bpmn:lane id="Lane_Monitoring" name="Monitoring">
+        <bpmn:flowNodeRef>EndEvent_NormalOperation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_AnomalyDetected</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_DetectAnomaly</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CollectMetrics</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>StartEvent_CollectMetrics</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_AIEngine" name="AI Engine">
+        <bpmn:flowNodeRef>Task_GeneratePlan</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ExecuteRemediation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_VerifyOutcome</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_RemediationSuccessful</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_RootCauseAnalysis</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_RemediationNeeded</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AnalyzeAnomaly</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Remediation" name="Remediation Service">
+        <bpmn:flowNodeRef>Task_SendRecoveryNotification</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_RecoveryCompleted</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Notification" name="Notification Service">
+        <bpmn:flowNodeRef>Task_EscalateIssue</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_EscalationCompleted</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="StartEvent_CollectMetrics" name="Start">
+      <bpmn:outgoing>Flow_Start_To_Collect</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_CollectMetrics" name="Collect Metrics">
+      <bpmn:incoming>Flow_Start_To_Collect</bpmn:incoming>
+      <bpmn:outgoing>Flow_Collect_To_Detect</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_DetectAnomaly" name="Detect Anomaly">
+      <bpmn:incoming>Flow_Collect_To_Detect</bpmn:incoming>
+      <bpmn:outgoing>Flow_Detect_To_Gateway</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Gateway_AnomalyDetected" name="Anomaly Detected?">
+      <bpmn:incoming>Flow_Detect_To_Gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Gateway_To_Normal</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Gateway_To_Analyze</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="EndEvent_NormalOperation" name="Normal Operation">
+      <bpmn:incoming>Flow_Gateway_To_Normal</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Task_AnalyzeAnomaly" name="Analyze Anomaly">
+      <bpmn:incoming>Flow_Gateway_To_Analyze</bpmn:incoming>
+      <bpmn:outgoing>Flow_Analyze_To_RootCause</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_RootCauseAnalysis" name="Root‑Cause Analysis">
+      <bpmn:incoming>Flow_Analyze_To_RootCause</bpmn:incoming>
+      <bpmn:outgoing>Flow_RootCause_To_RemediationGateway</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Gateway_RemediationNeeded" name="Remediation Needed?">
+      <bpmn:incoming>Flow_RootCause_To_RemediationGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_RemediationGateway_To_Plan</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_GeneratePlan" name="Generate Remediation Plan">
+      <bpmn:incoming>Flow_RemediationGateway_To_Plan</bpmn:incoming>
+      <bpmn:outgoing>Flow_Plan_To_Execute</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_ExecuteRemediation" name="Execute Remediation">
+      <bpmn:incoming>Flow_Plan_To_Execute</bpmn:incoming>
+      <bpmn:outgoing>Flow_Execute_To_Verify</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Task_VerifyOutcome" name="Verify Outcome">
+      <bpmn:incoming>Flow_Execute_To_Verify</bpmn:incoming>
+      <bpmn:outgoing>Flow_Verify_To_SuccessGateway</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Gateway_RemediationSuccessful" name="Remediation Successful?">
+      <bpmn:incoming>Flow_Verify_To_SuccessGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_SuccessGateway_To_Notify</bpmn:outgoing>
+      <bpmn:outgoing>Flow_SuccessGateway_To_Escalate</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_SendRecoveryNotification" name="Send Recovery Notification">
+      <bpmn:incoming>Flow_SuccessGateway_To_Notify</bpmn:incoming>
+      <bpmn:outgoing>Flow_Notify_To_EndRecovery</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="EndEvent_RecoveryCompleted" name="Recovery Completed">
+      <bpmn:incoming>Flow_Notify_To_EndRecovery</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:task id="Task_EscalateIssue" name="Escalate Issue">
+      <bpmn:incoming>Flow_SuccessGateway_To_Escalate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Escalate_To_EndEscalation</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="EndEvent_EscalationCompleted" name="Escalation Completed">
+      <bpmn:incoming>Flow_Escalate_To_EndEscalation</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Start_To_Collect" sourceRef="StartEvent_CollectMetrics" targetRef="Task_CollectMetrics" />
+    <bpmn:sequenceFlow id="Flow_Collect_To_Detect" sourceRef="Task_CollectMetrics" targetRef="Task_DetectAnomaly" />
+    <bpmn:sequenceFlow id="Flow_Detect_To_Gateway" sourceRef="Task_DetectAnomaly" targetRef="Gateway_AnomalyDetected" />
+    <bpmn:sequenceFlow id="Flow_Gateway_To_Normal" sourceRef="Gateway_AnomalyDetected" targetRef="EndEvent_NormalOperation" />
+    <bpmn:sequenceFlow id="Flow_Gateway_To_Analyze" sourceRef="Gateway_AnomalyDetected" targetRef="Task_AnalyzeAnomaly" />
+    <bpmn:sequenceFlow id="Flow_Analyze_To_RootCause" sourceRef="Task_AnalyzeAnomaly" targetRef="Task_RootCauseAnalysis" />
+    <bpmn:sequenceFlow id="Flow_RootCause_To_RemediationGateway" sourceRef="Task_RootCauseAnalysis" targetRef="Gateway_RemediationNeeded" />
+    <bpmn:sequenceFlow id="Flow_RemediationGateway_To_Plan" sourceRef="Gateway_RemediationNeeded" targetRef="Task_GeneratePlan" />
+    <bpmn:sequenceFlow id="Flow_Plan_To_Execute" sourceRef="Task_GeneratePlan" targetRef="Task_ExecuteRemediation" />
+    <bpmn:sequenceFlow id="Flow_Execute_To_Verify" sourceRef="Task_ExecuteRemediation" targetRef="Task_VerifyOutcome" />
+    <bpmn:sequenceFlow id="Flow_Verify_To_SuccessGateway" sourceRef="Task_VerifyOutcome" targetRef="Gateway_RemediationSuccessful" />
+    <bpmn:sequenceFlow id="Flow_SuccessGateway_To_Notify" sourceRef="Gateway_RemediationSuccessful" targetRef="Task_SendRecoveryNotification" />
+    <bpmn:sequenceFlow id="Flow_SuccessGateway_To_Escalate" sourceRef="Gateway_RemediationSuccessful" targetRef="Task_EscalateIssue" />
+    <bpmn:sequenceFlow id="Flow_Notify_To_EndRecovery" sourceRef="Task_SendRecoveryNotification" targetRef="EndEvent_RecoveryCompleted" />
+    <bpmn:sequenceFlow id="Flow_Escalate_To_EndEscalation" sourceRef="Task_EscalateIssue" targetRef="EndEvent_EscalationCompleted" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_selfHealing">
+    <bpmndi:BPMNPlane id="BPMNPlane_selfHealing" bpmnElement="process_selfHealing">
+      <bpmndi:BPMNShape id="Shape_Lane_Notification" bpmnElement="Lane_Notification">
+        <dc:Bounds x="30" y="690" width="2000" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Remediation" bpmnElement="Lane_Remediation">
+        <dc:Bounds x="30" y="470" width="2000" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_AIEngine" bpmnElement="Lane_AIEngine">
+        <dc:Bounds x="30" y="250" width="2000" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Monitoring" bpmnElement="Lane_Monitoring">
+        <dc:Bounds x="30" y="30" width="2000" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_GeneratePlan" bpmnElement="Task_GeneratePlan">
+        <dc:Bounds x="960" y="310" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ExecuteRemediation" bpmnElement="Task_ExecuteRemediation">
+        <dc:Bounds x="1120" y="310" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_VerifyOutcome" bpmnElement="Task_VerifyOutcome">
+        <dc:Bounds x="1360" y="310" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SendRecoveryNotification" bpmnElement="Task_SendRecoveryNotification">
+        <dc:Bounds x="1660" y="550" width="140" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_RemediationSuccessful" bpmnElement="Gateway_RemediationSuccessful" isMarkerVisible="true">
+        <dc:Bounds x="1525" y="365" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1518" y="327.5" width="63" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_EscalateIssue" bpmnElement="Task_EscalateIssue">
+        <dc:Bounds x="1620" y="750" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndEvent_EscalationCompleted" bpmnElement="EndEvent_EscalationCompleted">
+        <dc:Bounds x="1912" y="764" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1903" y="816" width="54" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndEvent_RecoveryCompleted" bpmnElement="EndEvent_RecoveryCompleted">
+        <dc:Bounds x="1912" y="577" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1903" y="546" width="54" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_RootCauseAnalysis" bpmnElement="Task_RootCauseAnalysis">
+        <dc:Bounds x="660" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_RemediationNeeded" bpmnElement="Gateway_RemediationNeeded" isMarkerVisible="true">
+        <dc:Bounds x="835" y="325" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="828" y="287.5" width="63" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_AnalyzeAnomaly" bpmnElement="Task_AnalyzeAnomaly">
+        <dc:Bounds x="475" y="310" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndEvent_NormalOperation" bpmnElement="EndEvent_NormalOperation">
+        <dc:Bounds x="1912" y="100" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1886" y="136" width="88" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_AnomalyDetected" bpmnElement="Gateway_AnomalyDetected" isMarkerVisible="true">
+        <dc:Bounds x="525" y="105" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="525" y="155" width="51" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_DetectAnomaly" bpmnElement="Task_DetectAnomaly">
+        <dc:Bounds x="350" y="105" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_CollectMetrics" bpmnElement="Task_CollectMetrics">
+        <dc:Bounds x="200" y="105" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_StartEvent_CollectMetrics" bpmnElement="StartEvent_CollectMetrics">
+        <dc:Bounds x="100" y="127" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="106" y="200" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_Start_To_Collect" bpmnElement="Flow_Start_To_Collect">
+        <di:waypoint x="136" y="142" />
+        <di:waypoint x="200" y="142" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Collect_To_Detect" bpmnElement="Flow_Collect_To_Detect">
+        <di:waypoint x="300" y="145" />
+        <di:waypoint x="350" y="145" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Detect_To_Gateway" bpmnElement="Flow_Detect_To_Gateway">
+        <di:waypoint x="450" y="135" />
+        <di:waypoint x="530" y="135" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Gateway_To_Normal" bpmnElement="Flow_Gateway_To_Normal">
+        <di:waypoint x="574" y="131" />
+        <di:waypoint x="1231" y="131" />
+        <di:waypoint x="1231" y="118" />
+        <di:waypoint x="1912" y="118" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Gateway_To_Analyze" bpmnElement="Flow_Gateway_To_Analyze">
+        <di:waypoint x="545" y="150" />
+        <di:waypoint x="545" y="238" />
+        <di:waypoint x="525" y="238" />
+        <di:waypoint x="525" y="310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Analyze_To_RootCause" bpmnElement="Flow_Analyze_To_RootCause">
+        <di:waypoint x="575" y="360" />
+        <di:waypoint x="660" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_RootCause_To_RemediationGateway" bpmnElement="Flow_RootCause_To_RemediationGateway">
+        <di:waypoint x="760" y="360" />
+        <di:waypoint x="798" y="360" />
+        <di:waypoint x="798" y="350" />
+        <di:waypoint x="835" y="350" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_RemediationGateway_To_Plan" bpmnElement="Flow_RemediationGateway_To_Plan">
+        <di:waypoint x="885" y="350" />
+        <di:waypoint x="960" y="350" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Plan_To_Execute" bpmnElement="Flow_Plan_To_Execute">
+        <di:waypoint x="1080" y="350" />
+        <di:waypoint x="1120" y="350" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Execute_To_Verify" bpmnElement="Flow_Execute_To_Verify">
+        <di:waypoint x="1240" y="350" />
+        <di:waypoint x="1360" y="350" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Verify_To_SuccessGateway" bpmnElement="Flow_Verify_To_SuccessGateway">
+        <di:waypoint x="1460" y="350" />
+        <di:waypoint x="1493" y="350" />
+        <di:waypoint x="1493" y="390" />
+        <di:waypoint x="1525" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SuccessGateway_To_Notify" bpmnElement="Flow_SuccessGateway_To_Notify">
+        <di:waypoint x="1575" y="390" />
+        <di:waypoint x="1680" y="390" />
+        <di:waypoint x="1680" y="463" />
+        <di:waypoint x="1730" y="463" />
+        <di:waypoint x="1730" y="550" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SuccessGateway_To_Escalate" bpmnElement="Flow_SuccessGateway_To_Escalate">
+        <di:waypoint x="1550" y="415" />
+        <di:waypoint x="1550" y="538" />
+        <di:waypoint x="1621" y="538" />
+        <di:waypoint x="1621" y="751" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Notify_To_EndRecovery" bpmnElement="Flow_Notify_To_EndRecovery">
+        <di:waypoint x="1800" y="590" />
+        <di:waypoint x="1913" y="590" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Escalate_To_EndEscalation" bpmnElement="Flow_Escalate_To_EndEscalation">
+        <di:waypoint x="1740" y="782" />
+        <di:waypoint x="1826" y="782" />
+        <di:waypoint x="1826" y="781" />
+        <di:waypoint x="1912" y="781" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

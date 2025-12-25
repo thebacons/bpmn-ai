@@ -609,15 +609,69 @@ async function handleNewDiagram() {
   }
 }
 
-async function loadProviders() {
-  try {
-    const resp = await fetch(`${apiBase}/api/providers`);
-    if (!resp.ok) {
-      throw new Error('Provider list unavailable.');
+function normalizeApiBase(base) {
+  if (!base) {
+    return '';
+  }
+  return base.trim().replace(/\/+$/, '');
+}
+
+function getApiCandidates() {
+  const candidates = [];
+  const stored = normalizeApiBase(localStorage.getItem('aiApiBase'));
+  if (stored) {
+    candidates.push(stored);
+  }
+  const current = normalizeApiBase(apiBase);
+  if (current) {
+    candidates.push(current);
+  }
+  const host = window.location.hostname || 'localhost';
+  [ 5174, 5175, 5176 ].forEach((port) => {
+    candidates.push(`http://${host}:${port}`);
+    if (host !== 'localhost') {
+      candidates.push(`http://localhost:${port}`);
     }
-    providerData = await resp.json();
-    setPanelStatus(aiStatusEl, 'Providers loaded from local AI server.');
-  } catch (err) {
+  });
+  return Array.from(new Set(candidates));
+}
+
+async function fetchProviders(base) {
+  const resp = await fetch(`${base}/api/providers`);
+  if (!resp.ok) {
+    throw new Error('Provider list unavailable.');
+  }
+  return resp.json();
+}
+
+async function loadProviders() {
+  const candidates = getApiCandidates();
+  let resolvedBase = null;
+  let resolvedData = null;
+
+  for (const candidate of candidates) {
+    try {
+      resolvedData = await fetchProviders(candidate);
+      resolvedBase = candidate;
+      break;
+    } catch (err) {
+      resolvedData = null;
+    }
+  }
+
+  if (resolvedData) {
+    providerData = resolvedData;
+    if (resolvedBase && resolvedBase !== apiBase) {
+      apiBase = resolvedBase;
+      localStorage.setItem('aiApiBase', apiBase);
+      if (aiApiBaseEl) {
+        aiApiBaseEl.value = apiBase;
+      }
+      setPanelStatus(aiStatusEl, `AI server detected at ${apiBase}.`);
+    } else {
+      setPanelStatus(aiStatusEl, 'Providers loaded from local AI server.');
+    }
+  } else {
     providerData = {
       sources: modelCatalog.sources,
       providers: {

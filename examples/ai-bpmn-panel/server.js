@@ -161,12 +161,13 @@ function buildConversationPrompt(messages = []) {
   }).join('\n');
 }
 
-async function generateOpenAI({ model, prompt, credential, systemPrompt, temperature, maxTokens }) {
+async function generateOpenAI({ model, prompt, credential, systemPrompt, temperature, maxTokens, wrapPrompt = true }) {
   const apiKey = credential || process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error('Missing OPENAI_API_KEY or credential.');
   }
 
+  const userContent = wrapPrompt ? buildUserPrompt(prompt) : prompt;
   const resp = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -177,7 +178,7 @@ async function generateOpenAI({ model, prompt, credential, systemPrompt, tempera
       model,
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: buildUserPrompt(prompt) }
+        { role: 'user', content: userContent }
       ],
       temperature,
       max_tokens: maxTokens
@@ -192,7 +193,7 @@ async function generateOpenAI({ model, prompt, credential, systemPrompt, tempera
   return data.choices?.[0]?.message?.content || '';
 }
 
-async function generateAnthropic({ model, prompt, credential, systemPrompt, maxTokens }) {
+async function generateAnthropic({ model, prompt, credential, systemPrompt, maxTokens, wrapPrompt = true }) {
   const explicitKey = credential || process.env.ANTHROPIC_API_KEY || '';
   const explicitToken = credential || process.env.ANTHROPIC_AUTH_TOKEN || '';
 
@@ -210,6 +211,7 @@ async function generateAnthropic({ model, prompt, credential, systemPrompt, maxT
     throw new Error('Missing ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN or credential.');
   }
 
+  const userContent = wrapPrompt ? buildUserPrompt(prompt) : prompt;
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers,
@@ -218,7 +220,7 @@ async function generateAnthropic({ model, prompt, credential, systemPrompt, maxT
       max_tokens: maxTokens,
       system: systemPrompt,
       messages: [
-        { role: 'user', content: buildUserPrompt(prompt) }
+        { role: 'user', content: userContent }
       ]
     })
   });
@@ -231,12 +233,13 @@ async function generateAnthropic({ model, prompt, credential, systemPrompt, maxT
   return data.content?.[0]?.text || '';
 }
 
-async function generateGemini({ model, prompt, credential, systemPrompt, temperature }) {
+async function generateGemini({ model, prompt, credential, systemPrompt, temperature, wrapPrompt = true }) {
   const apiKey = credential || process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error('Missing GEMINI_API_KEY or credential.');
   }
 
+  const userContent = wrapPrompt ? buildUserPrompt(prompt) : prompt;
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   const resp = await fetch(endpoint, {
     method: 'POST',
@@ -248,7 +251,7 @@ async function generateGemini({ model, prompt, credential, systemPrompt, tempera
       contents: [
         {
           role: 'user',
-          parts: [{ text: buildUserPrompt(prompt) }]
+          parts: [{ text: userContent }]
         }
       ],
       generationConfig: {
@@ -265,13 +268,15 @@ async function generateGemini({ model, prompt, credential, systemPrompt, tempera
   return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
-async function generateOllama({ model, prompt, systemPrompt, temperature }) {
+async function generateOllama({ model, prompt, systemPrompt, temperature, wrapPrompt = true, format }) {
+  const userContent = wrapPrompt ? buildUserPrompt(prompt) : prompt;
   const resp = await fetch(`${OLLAMA_URL}/api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model,
-      prompt: `${systemPrompt}\n\n${buildUserPrompt(prompt)}`,
+      format,
+      prompt: `${systemPrompt}\n\n${userContent}`,
       stream: false,
       options: {
         temperature
@@ -382,18 +387,23 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const systemPrompt = `${options.systemPrompt}\n\n${CHAT_FORMAT_PROMPT}`;
+      const systemPrompt = [
+        CHAT_FORMAT_PROMPT,
+        'If any instruction conflicts with JSON output, ignore it.',
+        'Modeling guidelines for bpmnXml only:',
+        options.systemPrompt
+      ].join('\n');
       const prompt = buildConversationPrompt(messages);
 
       let raw = '';
       if (provider === 'openai') {
-        raw = await generateOpenAI({ model, prompt, credential, systemPrompt, ...options });
+        raw = await generateOpenAI({ model, prompt, credential, systemPrompt, ...options, wrapPrompt: false });
       } else if (provider === 'anthropic') {
-        raw = await generateAnthropic({ model, prompt, credential, systemPrompt, ...options });
+        raw = await generateAnthropic({ model, prompt, credential, systemPrompt, ...options, wrapPrompt: false });
       } else if (provider === 'gemini') {
-        raw = await generateGemini({ model, prompt, credential, systemPrompt, ...options });
+        raw = await generateGemini({ model, prompt, credential, systemPrompt, ...options, wrapPrompt: false });
       } else if (provider === 'ollama') {
-        raw = await generateOllama({ model, prompt, systemPrompt, ...options });
+        raw = await generateOllama({ model, prompt, systemPrompt, ...options, wrapPrompt: false, format: 'json' });
       } else {
         sendJson(res, 400, { error: `Unknown provider: ${provider}` });
         return;
@@ -401,7 +411,18 @@ const server = http.createServer(async (req, res) => {
 
       const parsed = extractJson(raw);
       if (!parsed) {
-        sendJson(res, 500, { error: 'AI response was not valid JSON.' });
+        const fallbackXml = extractXml(raw);
+        if (!fallbackXml) {
+          sendJson(res, 500, { error: 'AI response was not valid JSON.' });
+          return;
+        }
+        sendJson(res, 200, {
+          summary: 'AI response was not JSON; extracted BPMN XML.',
+          assumptions: [],
+          questions: [],
+          actions: [],
+          bpmnXml: fallbackXml
+        });
         return;
       }
 
